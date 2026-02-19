@@ -1,34 +1,37 @@
 def calculate_confidence(mapped_variants, phenotypes):
-    """
-    Calculate confidence score based on:
-    - Evidence strength
-    - Allele impact count
-    - Phenotype severity
-    """
 
-    score = 0.5
+    if not mapped_variants:
+        # If no PGx variants detected but VCF parsed correctly
+        return 0.9
 
-    loss_count = 0
+    score = 0.6
 
     for variant in mapped_variants:
-        if variant["effect"] == "loss_of_function":
-            genotype = variant["genotype"]
 
-            if genotype == "1/1":
-                loss_count += 2
-            elif genotype == "0/1":
-                loss_count += 1
+        gq = variant.get("gq", 0)
+        dp = variant.get("dp", 0)
+        filter_status = variant.get("filter", "")
 
-    # Add based on allele severity
-    score += min(loss_count * 0.1, 0.3)
-
-    # Add if severe phenotype
-    for phenotype in phenotypes.values():
-        if phenotype == "PM":
+        # Quality contributions
+        if gq >= 90:
             score += 0.1
 
-    # Cap score
-    if score > 0.95:
-        score = 0.95
+        if dp >= 30:
+            score += 0.1
 
-    return round(score, 2)
+        if filter_status == "PASS":
+            score += 0.1
+
+        # Pathogenic impact contribution
+        if variant["effect"] == "loss_of_function":
+            if variant["genotype"] == "1/1":
+                score += 0.1
+            elif variant["genotype"] == "0/1":
+                score += 0.05
+
+    # Severe phenotype boost
+    for phenotype in phenotypes.values():
+        if phenotype == "PM":
+            score += 0.05
+
+    return round(min(score, 0.99), 2)
