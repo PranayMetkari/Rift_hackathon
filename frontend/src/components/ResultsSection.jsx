@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import RiskCard from './RiskCard';
 
@@ -39,6 +39,7 @@ const getRiskBg = (label) => {
 const ResultsSection = ({ results }) => {
     if (!results?.length) return null;
     const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const [copied, setCopied] = useState(false);
 
     const highRisk = results.filter(r => {
         const l = (r.label || '').toLowerCase();
@@ -52,6 +53,27 @@ const ResultsSection = ({ results }) => {
         const l = (r.label || '').toLowerCase();
         return !l.includes('high') && !l.includes('toxic') && !l.includes('poor') && !l.includes('adjust') && !l.includes('warn') && !l.includes('intermediate');
     });
+
+    const downloadJSON = useCallback(() => {
+        const blob = new Blob(
+            [JSON.stringify({ generatedAt: new Date().toISOString(), totalDrugs: results.length, results }, null, 2)],
+            { type: 'application/json' }
+        );
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `pgx-risk-report-${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }, [results]);
+
+    const copyToClipboard = useCallback(() => {
+        const text = JSON.stringify({ generatedAt: new Date().toISOString(), totalDrugs: results.length, results }, null, 2);
+        navigator.clipboard.writeText(text).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2200);
+        });
+    }, [results]);
 
     return (
         <div style={{ paddingBottom: 40 }}>
@@ -87,8 +109,66 @@ const ResultsSection = ({ results }) => {
                     </div>
                 </div>
 
-                {/* Summary badges with count-up */}
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {/* Summary badges + action buttons */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        {/* Download JSON */}
+                        <motion.button
+                            whileHover={{ scale: 1.04, boxShadow: '0 0 14px rgba(96,165,250,0.35)' }}
+                            whileTap={{ scale: 0.97 }}
+                            onClick={downloadJSON}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: 7,
+                                padding: '8px 14px', borderRadius: 10,
+                                background: 'rgba(59,130,246,0.12)',
+                                border: '1px solid rgba(96,165,250,0.35)',
+                                color: '#93C5FD', fontSize: 12, fontWeight: 600,
+                                cursor: 'pointer', outline: 'none',
+                                fontFamily: "'Plus Jakarta Sans',sans-serif",
+                                letterSpacing: '0.3px',
+                                transition: 'background 0.2s',
+                            }}
+                        >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            Download JSON
+                        </motion.button>
+
+                        {/* Copy to Clipboard */}
+                        <motion.button
+                            whileHover={{ scale: 1.04, boxShadow: copied ? '0 0 14px rgba(52,211,153,0.35)' : '0 0 14px rgba(167,139,250,0.35)' }}
+                            whileTap={{ scale: 0.97 }}
+                            onClick={copyToClipboard}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: 7,
+                                padding: '8px 14px', borderRadius: 10,
+                                background: copied ? 'rgba(52,211,153,0.12)' : 'rgba(167,139,250,0.12)',
+                                border: copied ? '1px solid rgba(52,211,153,0.4)' : '1px solid rgba(167,139,250,0.35)',
+                                color: copied ? '#6EE7B7' : '#C4B5FD', fontSize: 12, fontWeight: 600,
+                                cursor: 'pointer', outline: 'none',
+                                fontFamily: "'Plus Jakarta Sans',sans-serif",
+                                letterSpacing: '0.3px',
+                                transition: 'all 0.25s',
+                            }}
+                        >
+                            {copied ? (
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="20 6 9 17 4 12"/>
+                                </svg>
+                            ) : (
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                                </svg>
+                            )}
+                            {copied ? '✓ Copied!' : 'Copy JSON'}
+                        </motion.button>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     {highRisk.length > 0 && (
                         <motion.div
                             initial={{ opacity: 0, scale: 0.85 }}
@@ -134,6 +214,7 @@ const ResultsSection = ({ results }) => {
                             <span style={{ fontSize: 13, fontWeight: 700, color: '#6EE7B7' }}><AnimatedCount target={safeRisk.length} /> Safe</span>
                         </motion.div>
                     )}
+                    </div>
                 </div>
             </motion.div>
 
