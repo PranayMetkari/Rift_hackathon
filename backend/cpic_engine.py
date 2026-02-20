@@ -141,12 +141,8 @@ CPIC_GUIDELINES = {
 
 
 def apply_cpic_guideline(phenotypes, drugs):
-    """
-    Supports single or multiple drugs (comma-separated).
-    """
 
     drug_list = [d.strip().upper() for d in drugs.split(",")]
-
     results = {}
 
     for drug in drug_list:
@@ -164,14 +160,15 @@ def apply_cpic_guideline(phenotypes, drugs):
 
         drug_rules = CPIC_GUIDELINES[drug]
 
-        matched = False
-        for gene, phenotype in phenotypes.items():
+        # Each drug currently maps to one gene
+        for gene in drug_rules.keys():
 
-            if gene in drug_rules and phenotype in drug_rules[gene]:
+            phenotype = phenotypes.get(gene, "NM")
+
+            if phenotype in drug_rules[gene]:
 
                 rule = drug_rules[gene][phenotype]
 
-                # Normalize risk labels to required set
                 risk_label = rule.get("risk_category")
                 if risk_label == "Reduced efficacy":
                     risk_label = "Adjust Dosage"
@@ -184,16 +181,15 @@ def apply_cpic_guideline(phenotypes, drugs):
                     "recommendation": rule["recommendation"],
                     "evidence_level": rule["evidence_level"]
                 }
-                matched = True
 
-        if not matched:
-            # No rule matched for any gene -> unknown risk for this drug
+        # Safety fallback
+        if drug not in results:
             results[drug] = {
                 "gene": None,
                 "phenotype": None,
                 "risk_category": "Unknown",
                 "severity": "Unknown",
-                "recommendation": "No applicable CPIC rule for detected phenotypes",
+                "recommendation": "No applicable CPIC rule",
                 "evidence_level": None
             }
 

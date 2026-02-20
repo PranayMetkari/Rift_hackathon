@@ -11,46 +11,6 @@ CRITICAL_GENES = {
 }
 
 
-def classify_variants(variants):
-    """
-    Minimal classification layer:
-    - Recognized pharmacogenomic variants
-    - Non-PGx variants count
-    """
-
-    recognized = []
-    non_pgx_count = 0
-
-    for variant in variants:
-
-        rsid = variant["rsid"]
-        genotype = variant["genotype"]
-
-        if rsid in VARIANT_DATABASE:
-
-            variant_info = VARIANT_DATABASE[rsid]
-            gene = variant_info["gene"]
-
-            if gene in CRITICAL_GENES:
-                recognized.append({
-                    "rsid": rsid,
-                    "gene": gene,
-                    "allele": variant_info["allele"],
-                    "effect": variant_info["effect"],
-                    "genotype": genotype
-                })
-            else:
-                non_pgx_count += 1
-        else:
-            non_pgx_count += 1
-
-    return {
-        "total_variants_scanned": len(variants),
-        "recognized_pgx_variants": recognized,
-        "non_pgx_variants_count": non_pgx_count
-    }
-
-
 VARIANT_DATABASE = {
     "rs4244285": {
         "gene": "CYP2C19",
@@ -83,10 +43,53 @@ VARIANT_DATABASE = {
         "effect": "loss_of_function"
     }
 }
+
+
+def classify_variants(variants):
+
+    recognized = []
+    non_pgx_count = 0
+
+    for variant in variants:
+        rsid = variant["rsid"]
+        genotype = variant["genotype"]
+        gene = variant.get("gene")   # <-- must include gene from VCF
+        filter_status = variant.get("filter")
+
+        # Skip low quality
+        if filter_status != "PASS":
+            continue
+
+        # If gene is pharmacogene
+        if gene in CRITICAL_GENES:
+
+            # If mutation present AND known actionable
+            if rsid in VARIANT_DATABASE and genotype in ["0/1", "1/1"]:
+
+                variant_info = VARIANT_DATABASE[rsid]
+
+                recognized.append({
+                    "rsid": rsid,
+                    "gene": gene,
+                    "allele": variant_info["allele"],
+                    "effect": variant_info["effect"],
+                    "genotype": genotype,
+                    "dp": variant.get("dp"),
+                    "gq": variant.get("gq"),
+                    "filter": filter_status
+                })
+
+        else:
+            # Truly non-pharmacogene variant
+            non_pgx_count += 1
+
+    return {
+        "total_variants_scanned": len(variants),
+        "recognized_pgx_variants": recognized,
+        "non_pgx_variants_count": non_pgx_count
+    }
+
 def map_rsids_to_effects(variants):
-    """
-    Convert rsIDs into biological allele effect information
-    """
 
     mapped_variants = []
 
@@ -94,7 +97,9 @@ def map_rsids_to_effects(variants):
         rsid = variant["rsid"]
         genotype = variant["genotype"]
 
-        if rsid in VARIANT_DATABASE:
+        # Only include if mutation actually present
+        if rsid in VARIANT_DATABASE and genotype in ["0/1", "1/1"]:
+
             variant_info = VARIANT_DATABASE[rsid]
 
             mapped_variants.append({
@@ -102,7 +107,10 @@ def map_rsids_to_effects(variants):
                 "gene": variant_info["gene"],
                 "allele": variant_info["allele"],
                 "effect": variant_info["effect"],
-                "genotype": genotype
+                "genotype": genotype,
+                "dp": variant.get("dp"),
+                "gq": variant.get("gq"),
+                "filter": variant.get("filter")
             })
 
     return mapped_variants
