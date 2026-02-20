@@ -1,10 +1,19 @@
 def extract_variants(file):
 
     variants = []
-
+    has_header = False
+    header_line = None
+    
     contents = file.file.read().decode("utf-8").splitlines()
 
     for line in contents:
+        if line.startswith("##fileformat=VCF"):
+            has_header = True
+            continue
+        
+        if line.startswith("#CHROM"):
+            header_line = line
+            continue
 
         if line.startswith("#"):
             continue

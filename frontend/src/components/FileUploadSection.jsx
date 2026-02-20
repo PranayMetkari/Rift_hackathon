@@ -71,6 +71,11 @@ const FileUploadSection = ({ mode, setMode, file, setFile, manualVariants, setMa
                             <div className="upload-zone-title">Drop VCF file here or click to browse</div>
                             <div className="upload-zone-sub">Supports Variant Call Format files from WGS/WES pipelines</div>
                             <div className="upload-meta">.vcf / .vcf.gz · Max 50MB</div>
+                            <div style={{ marginTop: 12, fontSize: 12, color: 'var(--text-muted)' }}>
+                                <a href="/sample.vcf" download style={{ color: 'var(--mint)', textDecoration: 'underline', cursor: 'pointer' }}>
+                                    Download test VCF file
+                                </a>
+                            </div>
                         </div>
                     ) : (
                         <div className="file-loaded">

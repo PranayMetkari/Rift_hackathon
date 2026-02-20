@@ -202,6 +202,20 @@ function App() {
             // Ensure we always have an array
             const resultsArray = Array.isArray(analysisResults) ? analysisResults : [analysisResults];
 
+            // Check if any pharmacogenomic variants were detected
+            const firstResult = resultsArray[0];
+            const pgxVariantsDetected = firstResult?.quality_metrics?.total_variants_scanned > 0 && 
+                                       (firstResult?.pharmacogenomic_profile?.detected_variants?.length > 0 || 
+                                        resultsArray.some(r => r?.pharmacogenomic_profile?.detected_variants?.length > 0));
+            
+            if (!pgxVariantsDetected && firstResult?.quality_metrics?.total_variants_scanned === 0) {
+                setError('No variants detected in VCF file. Please upload a valid VCF file with variant data. You can download a test VCF file from the upload area.');
+                setLoading(false);
+                clearInterval(grow);
+                setLoaderWidth(0);
+                return;
+            }
+
             // Transform backend response to frontend format
             const transformedResults = resultsArray.map((result) => {
                 const drug = result.drug || selectedDrugs[0];
@@ -622,31 +636,64 @@ function App() {
                                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Want to test a different patient or file?</div>
                             </div>
                         </div>
-                        <motion.button
-                            onClick={() => {
-                                setResults(null);
-                                setFile(null);
-                                setManualVariants([{ id: 1, chromosome: '', position: '', refAllele: '', altAllele: '' }]);
-                                setSelectedDrugs([]);
-                                setError('');
-                                setStep(1);
-                                window.scrollTo({ top: 0, behavior: 'smooth' });
-                            }}
-                            whileHover={{ scale: 1.04, boxShadow: '0 0 20px rgba(52,211,153,0.35)' }}
-                            whileTap={{ scale: 0.97 }}
-                            style={{
-                                display: 'flex', alignItems: 'center', gap: 8,
-                                padding: '11px 24px', borderRadius: 10, border: 'none',
-                                background: 'linear-gradient(135deg,#34D399,#059669)',
-                                color: '#fff', fontSize: 14, fontWeight: 600,
-                                cursor: 'pointer', fontFamily: "'Plus Jakarta Sans',sans-serif",
-                            }}
-                        >
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
-                            </svg>
-                            Start New Analysis
-                        </motion.button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <motion.button
+                                onClick={() => {
+                                    // Download analysis results as JSON
+                                    const jsonData = JSON.stringify(results, null, 2);
+                                    const blob = new Blob([jsonData], { type: 'application/json' });
+                                    const url = URL.createObjectURL(blob);
+                                    const link = document.createElement('a');
+                                    link.href = url;
+                                    link.download = `analysis-results-${new Date().toISOString().split('T')[0]}.json`;
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                    URL.revokeObjectURL(url);
+                                }}
+                                whileHover={{ scale: 1.04, boxShadow: '0 0 20px rgba(59,130,246,0.35)' }}
+                                whileTap={{ scale: 0.97 }}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: 8,
+                                    padding: '11px 20px', borderRadius: 10, border: 'none',
+                                    background: 'linear-gradient(135deg,#3B82F6,#1E40AF)',
+                                    color: '#fff', fontSize: 13, fontWeight: 600,
+                                    cursor: 'pointer', fontFamily: "'Plus Jakarta Sans',sans-serif",
+                                }}
+                                title="Download analysis results as JSON"
+                            >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+                                </svg>
+                                JSON
+                            </motion.button>
+                            <motion.button
+                                onClick={() => {
+                                    // Download CSS file
+                                    const cssLink = document.createElement('a');
+                                    cssLink.href = '/src/index.css';
+                                    cssLink.download = `pharmaGuard-styles-${new Date().toISOString().split('T')[0]}.css`;
+                                    document.body.appendChild(cssLink);
+                                    cssLink.click();
+                                    document.body.removeChild(cssLink);
+                                }}
+                                whileHover={{ scale: 1.04, boxShadow: '0 0 20px rgba(168,85,247,0.35)' }}
+                                whileTap={{ scale: 0.97 }}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: 8,
+                                    padding: '11px 20px', borderRadius: 10, border: 'none',
+                                    background: 'linear-gradient(135deg,#A855F7,#7C3AED)',
+                                    color: '#fff', fontSize: 13, fontWeight: 600,
+                                    cursor: 'pointer', fontFamily: "'Plus Jakarta Sans',sans-serif",
+                                }}
+                                title="Download CSS stylesheet"
+                            >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+                                </svg>
+                                CSS
+                            </motion.button>
+                        </div>
                     </motion.div>
                 </div>
             )}

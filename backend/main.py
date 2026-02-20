@@ -21,8 +21,12 @@ app = FastAPI()
 _frontend_url = os.getenv("FRONTEND_URL", "")
 _allowed_origins = [
     "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:5175",
     "http://localhost:3000",
     "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+    "http://127.0.0.1:5175",
 ]
 
 if _frontend_url:
@@ -52,7 +56,22 @@ def home():
 @app.post("/test-vcf")
 async def test_vcf(file: UploadFile = File(...)):
     variants = extract_variants(file)
-    return {"detected_rsids": variants}
+    print(f"DEBUG test-vcf: Extracted {len(variants)} raw variants")
+    
+    classification = classify_variants(variants)
+    mapped = classification["recognized_pgx_variants"]
+    print(f"DEBUG test-vcf: Classified {len(mapped)} as PGx variants")
+    
+    phenotypes = infer_phenotypes(mapped)
+    print(f"DEBUG test-vcf: Phenotypes = {phenotypes}")
+    
+    return {
+        "raw_variants": len(variants),
+        "pgx_variants": len(mapped),
+        "detected_rsids": [v["rsid"] for v in mapped],
+        "phenotypes": phenotypes,
+        "mapped_variants": mapped
+    }
 
 
 @app.post("/analyze-manual")
@@ -75,11 +94,22 @@ async def analyze(
 ):
 
     variants = extract_variants(file)
+    print(f"DEBUG: Extracted {len(variants)} variants from VCF")
+    if variants:
+        print(f"DEBUG: First variant: {variants[0]}")
 
     classification = classify_variants(variants)
     mapped = classification["recognized_pgx_variants"]
+    print(f"DEBUG: Classified {len(mapped)} as pharmacogenomic variants")
+    if mapped:
+        print(f"DEBUG: First recognized variant: {mapped[0]}")
+
+    # Check if any pharmacogenomic variants were detected
+    if not mapped:
+        print("WARNING: No pharmacogenomic variants detected in VCF")
 
     phenotypes = infer_phenotypes(mapped)
+    print(f"DEBUG: Inferred phenotypes: {phenotypes}")
 
     cpic_result = apply_cpic_guideline(phenotypes, drug)
 
@@ -174,12 +204,29 @@ async def analyze(
         "confidence_score": confidence
     }
 
-    return {
-        "patient_id": patient_id,
-        "timestamp": datetime.utcnow().isoformat() + "Z",
-        "drug_results": drug_results,
-        "quality_metrics": quality_metrics
-    }
+    # Build response in frontend-expected format
+    results = []
+    
+    for drug_key, drug_data in drug_results.items():
+        result = {
+            "patient_id": patient_id,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "drug": drug_key,
+            "pharmacogenomic_profile": {
+                "primary_gene": drug_data.get("primary_gene"),
+                "diplotype": drug_data.get("diplotype"),
+                "phenotype": drug_data.get("phenotype"),
+                "detected_variants": [v for v in mapped if v.get("gene") == drug_data.get("primary_gene")] if drug_data.get("primary_gene") else []
+            },
+            "risk_assessment": drug_data.get("risk_assessment", {}),
+            "clinical_recommendation": drug_data.get("clinical_recommendation", {}),
+            "llm_generated_explanation": drug_data.get("llm_generated_explanation", {}),
+            "quality_metrics": quality_metrics
+        }
+        results.append(result)
+    
+    # Return single result if one drug, array if multiple
+    return results[0] if len(results) == 1 else results
 
 # ---------------------------
 # Additional Test Routes

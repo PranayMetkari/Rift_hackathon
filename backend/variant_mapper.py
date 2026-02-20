@@ -53,21 +53,19 @@ def classify_variants(variants):
     for variant in variants:
         rsid = variant["rsid"]
         genotype = variant["genotype"]
-        gene = variant.get("gene")   # <-- must include gene from VCF
         filter_status = variant.get("filter")
 
         # Skip low quality
         if filter_status != "PASS":
             continue
 
-        # If gene is pharmacogene
-        if gene in CRITICAL_GENES:
+        # Check if RSID is in our pharmacogenomic database
+        if rsid in VARIANT_DATABASE and genotype in ["0/1", "1/1"]:
+            variant_info = VARIANT_DATABASE[rsid]
+            gene = variant_info["gene"]
 
-            # If mutation present AND known actionable
-            if rsid in VARIANT_DATABASE and genotype in ["0/1", "1/1"]:
-
-                variant_info = VARIANT_DATABASE[rsid]
-
+            # Only include if it's a critical pharmacogene
+            if gene in CRITICAL_GENES:
                 recognized.append({
                     "rsid": rsid,
                     "gene": gene,
@@ -78,9 +76,8 @@ def classify_variants(variants):
                     "gq": variant.get("gq"),
                     "filter": filter_status
                 })
-
         else:
-            # Truly non-pharmacogene variant
+            # Variant not in our database or not present
             non_pgx_count += 1
 
     return {

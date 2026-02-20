@@ -1,0 +1,14 @@
+##fileformat=VCFv4.2
+##fileDate=20260220
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Total read depth">
+##INFO=<ID=GQ,Number=1,Type=Integer,Description="Genotype quality">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read depth">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype quality">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	sample1
+10	96522463	rs4244285	A	G	100	PASS	DP=50;GQ=99	GT:DP:GQ	0/1:50:99
+19	41978871	rs4986893	A	T	100	PASS	DP=45;GQ=95	GT:DP:GQ	1/1:45:95
+22	42127941	rs3892097	G	A	100	PASS	DP=40;GQ=90	GT:DP:GQ	0/1:40:90
+12	21374546	rs4149056	T	C	100	PASS	DP=35;GQ=85	GT:DP:GQ	0/1:35:85
+6	16062157	rs1142345	A	G	100	PASS	DP=55;GQ=100	GT:DP:GQ	1/1:55:100
+1	97915614	rs3918290	A	G	100	PASS	DP=30;GQ=80	GT:DP:GQ	0/1:30:80
